@@ -1,0 +1,12 @@
+{
+    "author" : "AriusX7",
+    "install_msg" : "Thank you for installing the Mod cog.",
+    "name" : "Mod",
+    "short": "A collection of  moderation commands.",
+    "description" : "A redefined collection of useful moderation commands.",
+	"tags": [
+        "moderation",
+        "mute",
+        "warn"
+	]
+}
