@@ -8,7 +8,7 @@ from typing import Optional
 import discord
 
 # Redbot
-from redbot.core import commands, Config
+from redbot.core import commands, Config, checks
 from redbot.cogs.mod.mod import Mod  # This is the actual mod cog
 from redbot.core.utils.predicates import ReactionPredicate
 from redbot.core.utils.menus import start_adding_reactions
