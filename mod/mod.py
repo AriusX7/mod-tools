@@ -17,6 +17,7 @@ from dateutil import relativedelta
 # Discord
 import discord
 
+from redbot.cogs.admin.admin import Admin
 from redbot.cogs.mod.mod import Mod   # This is the actual mod cog
 from redbot.cogs.mod.converters import RawUserIds
 from redbot.core import Config, checks, commands, modlog
@@ -49,6 +50,46 @@ default_member = {
 _ = T_ = Translator("Mod", __file__)
 
 mute_fail = "Failed to mute user. Reason:"
+
+GENERIC_FORBIDDEN = _(
+    "I attempted to do something that Discord denied me permissions for."
+    " Your command failed to successfully complete."
+)
+
+HIERARCHY_ISSUE_ADD = _(
+    "I tried to add {role.name} to {member.display_name} but that role"
+    " is higher than my highest role in the Discord hierarchy so I was"
+    " unable to successfully add it. Please give me a higher role and "
+    "try again."
+)
+
+HIERARCHY_ISSUE_REMOVE = _(
+    "I tried to remove {role.name} from {member.display_name} but that role"
+    " is higher than my highest role in the Discord hierarchy so I was"
+    " unable to successfully remove it. Please give me a higher role and "
+    "try again."
+)
+
+USER_HIERARCHY_ISSUE_ADD = _(
+    "I tried to add {role.name} to {member.display_name} but that role"
+    " is higher than your highest role in the Discord hierarchy so I was"
+    " unable to successfully add it. Please get a higher role and "
+    "try again."
+)
+
+USER_HIERARCHY_ISSUE_REMOVE = _(
+    "I tried to remove {role.name} from {member.display_name} but that role"
+    " is higher than your highest role in the Discord hierarchy so I was"
+    " unable to successfully remove it. Please get a higher role and "
+    "try again."
+)
+
+ROLE_USER_HIERARCHY_ISSUE = _(
+    "I tried to edit {role.name} but that role"
+    " is higher than your highest role in the Discord hierarchy so I was"
+    " unable to successfully add it. Please get a higher role and "
+    "try again."
+)
 
 # remove when 3.2 is out
 def humanize_number(val: Union[int, float], override_locale=None) -> str:
@@ -1280,7 +1321,7 @@ class ExtMod(Mod, name="Mod"):
         created_at_str += f" ago** ({created_at.strftime('%d %b %Y %H:%M')})"
 
         desc = f"Created: {created_at_str}\nOwner: **{ctx.guild.owner}** ({ctx.guild.owner.id})"
-        desc += f"\nVoice Region: {guild.region}"
+        desc += f"\nVoice Region: **{guild.region}**"
 
         user_str = f"Total: **{total_users}**\nOnline: **{online}**\nIdle: **{idle}**"
         user_str += f"\nDND: **{dnd}**\nOffline: **{offline}**"
@@ -1371,6 +1412,42 @@ class ExtMod(Mod, name="Mod"):
                 return await ctx.send(f"**{role.name}** is not a sticky role!")
 
         await ctx.send(f"Changed **{role.name}** into a non-sticky role.")
+
+    @commands.command()
+    @commands.guild_only()
+    @checks.admin_or_permissions(manage_roles=True)
+    async def addrole(
+        self, ctx: commands.Context, rolename: discord.Role, *, user: MemberDefaultAuthor = None
+    ):
+        """Add a role to a user.
+
+        If user is left blank it defaults to the author of the command.
+        """
+        if user is None:
+            user = ctx.author
+        if Admin.pass_user_hierarchy_check(ctx, rolename):
+            # noinspection PyTypeChecker
+            await Admin._addrole(ctx, user, rolename)
+        else:
+            await Admin.complain(ctx, T_(USER_HIERARCHY_ISSUE_ADD), member=user, role=rolename)
+    
+    @commands.command()
+    @commands.guild_only()
+    @checks.admin_or_permissions(manage_roles=True)
+    async def removerole(
+        self, ctx: commands.Context, rolename: discord.Role, *, user: MemberDefaultAuthor = None
+    ):
+        """Remove a role from a user.
+
+        If user is left blank it defaults to the author of the command.
+        """
+        if user is None:
+            user = ctx.author
+        if Admin.pass_user_hierarchy_check(ctx, rolename):
+            # noinspection PyTypeChecker
+            await Admin._removerole(ctx, user, rolename)
+        else:
+            await Admin.complain(ctx, T_(USER_HIERARCHY_ISSUE_REMOVE), member=user, role=rolename)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
