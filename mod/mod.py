@@ -1414,11 +1414,18 @@ class ExtMod(Mod, name="Mod"):
 
         await ctx.send(f"Changed **{role.name}** into a non-sticky role.")
 
-    @commands.command()
+    @commands.group(name="role")
     @commands.guild_only()
-    @checks.admin_or_permissions(manage_roles=True)
-    async def addrole(
-        self, ctx: commands.Context, rolename: discord.Role, *, user: MemberDefaultAuthor = None
+    @checks.mod_or_permissions(administrator=True)
+    async def _role(self, ctx: commands.Context):
+        """Add/remove roles to/from a user."""
+        pass
+
+    @_role.command(name="add")
+    @commands.guild_only()
+    @checks.mod_or_permissions(administrator=True)
+    async def role_add(
+        self, ctx: commands.Context, user: Optional[discord.Member] = None, *, role: discord.Role
     ):
         """Add a role to a user.
 
@@ -1426,17 +1433,31 @@ class ExtMod(Mod, name="Mod"):
         """
         if user is None:
             user = ctx.author
-        if Admin.pass_user_hierarchy_check(ctx, rolename):
-            # noinspection PyTypeChecker
-            await Admin._addrole(ctx, user, rolename)
+
+        admin = Admin(self.config)
+
+        if admin.pass_user_hierarchy_check(ctx, role):
+            try:
+                await user.add_roles(role)
+            except discord.Forbidden:
+                if not self.pass_hierarchy_check(ctx, role):
+                    await self.complain(ctx, T_(HIERARCHY_ISSUE_ADD), role=role, member=user)
+                else:
+                    await self.complain(ctx, T_(GENERIC_FORBIDDEN))
+            else:
+                await ctx.send(
+                    _("Added **{role.name}** to **{member.display_name}**.").format(
+                        role=role, member=user
+                    )
+                )
         else:
-            await Admin.complain(ctx, T_(USER_HIERARCHY_ISSUE_ADD), member=user, role=rolename)
-    
-    @commands.command()
+            await admin.complain(ctx, T_(USER_HIERARCHY_ISSUE_ADD), member=user, role=role)
+
+    @_role.command(name="remove")
     @commands.guild_only()
-    @checks.admin_or_permissions(manage_roles=True)
-    async def removerole(
-        self, ctx: commands.Context, rolename: discord.Role, *, user: MemberDefaultAuthor = None
+    @checks.mod_or_permissions(administrator=True)
+    async def role_remove(
+        self, ctx: commands.Context, user: Optional[discord.Member] = None, *, role: discord.Role
     ):
         """Remove a role from a user.
 
@@ -1444,11 +1465,25 @@ class ExtMod(Mod, name="Mod"):
         """
         if user is None:
             user = ctx.author
-        if Admin.pass_user_hierarchy_check(ctx, rolename):
-            # noinspection PyTypeChecker
-            await Admin._removerole(ctx, user, rolename)
+
+        admin = Admin(self.config)
+
+        if admin.pass_user_hierarchy_check(ctx, role):
+            try:
+                await user.remove_roles(role)
+            except discord.Forbidden:
+                if not self.pass_hierarchy_check(ctx, role):
+                    await self.complain(ctx, T_(HIERARCHY_ISSUE_REMOVE), role=role, member=user)
+                else:
+                    await self.complain(ctx, T_(GENERIC_FORBIDDEN))
+            else:
+                await ctx.send(
+                    _("Removed **{role.name}** from **{member.display_name}**.").format(
+                        role=role, member=user
+                    )
+                )
         else:
-            await Admin.complain(ctx, T_(USER_HIERARCHY_ISSUE_REMOVE), member=user, role=rolename)
+            await admin.complain(ctx, T_(USER_HIERARCHY_ISSUE_ADD), member=user, role=role)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
