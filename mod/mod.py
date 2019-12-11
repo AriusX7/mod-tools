@@ -18,6 +18,7 @@ from dateutil import relativedelta
 import discord
 
 from redbot.cogs.admin.admin import Admin
+from redbot.cogs.admin.converters import MemberDefaultAuthor
 from redbot.cogs.mod.mod import Mod   # This is the actual mod cog
 from redbot.cogs.mod.converters import RawUserIds
 from redbot.core import Config, checks, commands, modlog
@@ -1417,7 +1418,7 @@ class ExtMod(Mod, name="Mod"):
     @commands.guild_only()
     @checks.admin_or_permissions(manage_roles=True)
     async def addrole(
-        self, ctx: commands.Context, rolename: discord.Role, *, user: MemberDefaultAuthor = None
+        self, ctx: commands.Context, user: MemberDefaultAuthor = None, *, rolename: discord.Role
     ):
         """Add a role to a user.
 
@@ -1435,7 +1436,7 @@ class ExtMod(Mod, name="Mod"):
     @commands.guild_only()
     @checks.admin_or_permissions(manage_roles=True)
     async def removerole(
-        self, ctx: commands.Context, rolename: discord.Role, *, user: MemberDefaultAuthor = None
+        self, ctx: commands.Context, user: MemberDefaultAuthor = None, *, rolename: discord.Role
     ):
         """Remove a role from a user.
 
