@@ -1,6 +1,7 @@
-from .mod import Mod
+from .mod import ExtMod
 
 
 async def setup(bot):
-    cog = Mod()
+    cog = ExtMod(bot)
+    await cog.initialize()
     bot.add_cog(cog)

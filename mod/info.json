@@ -1,13 +1,16 @@
 {
 	"author": "AriusX7",
 	"description": "A redefined collection of useful moderation commands.",
-    "install_msg" : "Thank you for installing the Mod cog.",
+    "install_msg" : "Thank you for installing the Extended Mod cog.",
     "min_python_version": [3, 6, 0],
 	"short": "A collection of  moderation commands.",
 	"tags": [
         "moderation",
         "mute",
-        "warn"
+		"ban",
+		"note",
+		"search"
 	],
+	"requirements" : ["Babel", "python-dateutil"],
 	"type": "COG"
 }
