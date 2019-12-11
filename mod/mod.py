@@ -1418,7 +1418,7 @@ class ExtMod(Mod, name="Mod"):
     @commands.guild_only()
     @checks.admin_or_permissions(manage_roles=True)
     async def addrole(
-        self, ctx: commands.Context, user: MemberDefaultAuthor = None, *, rolename: discord.Role
+        self, ctx: commands.Context, rolename: discord.Role, *, user: MemberDefaultAuthor = None
     ):
         """Add a role to a user.
 
@@ -1436,7 +1436,7 @@ class ExtMod(Mod, name="Mod"):
     @commands.guild_only()
     @checks.admin_or_permissions(manage_roles=True)
     async def removerole(
-        self, ctx: commands.Context, user: MemberDefaultAuthor = None, *, rolename: discord.Role
+        self, ctx: commands.Context, rolename: discord.Role, *, user: MemberDefaultAuthor = None
     ):
         """Remove a role from a user.
 
