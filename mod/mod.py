@@ -442,7 +442,7 @@ class ExtMod(Mod, name="Mod"):
     
     @commands.command(aliases=["ui"])
     @commands.bot_has_permissions(embed_links=True)
-    async def userinfo(self, ctx: commands.Context, *, user: discord.Member=None):
+    async def userinfo(self, ctx: commands.Context, *, user: discord.User = None):
         """Show information about a user.
 
         This includes fields for status, discord join date, server
@@ -764,7 +764,7 @@ class ExtMod(Mod, name="Mod"):
             uslowmodes[channel.id] = seconds
         
         if seconds:
-            await ctx.send(f"Set a custom slowmode for {self.get_time(duration, ret_str=True)}"
+            await ctx.send(f"Set a custom slowmode {self.get_time(duration, ret_str=True)}"
                 f"in {channel.mention}.")
         else:
             await ctx.send(f"Disabled custom slowmode in {channel.mention}.")
