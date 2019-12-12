@@ -451,13 +451,18 @@ class ExtMod(Mod, name="Mod"):
         If the user has no roles, previous names or previous nicknames or case history,
         these fields will be omitted.
         """
+
         author = ctx.author
         guild = ctx.guild
 
         if not user:
             user = author
         
-        joined_at = user.joined_at
+        try:
+            joined_at = user.joined_at
+        except:
+            return await ctx.send("User is not in server anymore.")
+        
         since_created = (ctx.message.created_at - user.created_at).days
         if joined_at is not None:
             since_joined = (ctx.message.created_at - joined_at).days
