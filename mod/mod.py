@@ -6,28 +6,25 @@ import re
 
 from collections import namedtuple
 from datetime import datetime, timedelta
-from typing import cast, Optional, Union
+from typing import cast, Optional
 
-import babel.localedata
-
-from babel.core import Locale
-from babel.numbers import format_decimal
 from dateutil import relativedelta
 
 # Discord
 import discord
 
 from redbot.cogs.admin.admin import Admin
-from redbot.cogs.admin.converters import MemberDefaultAuthor
 from redbot.cogs.mod.mod import Mod   # This is the actual mod cog
 from redbot.cogs.mod.converters import RawUserIds
 from redbot.core import Config, checks, commands, modlog
-from redbot.core.i18n import get_locale, Translator, cog_i18n
-from redbot.core.modlog import Case, create_case, get_modlog_channel
-from redbot.core.utils.chat_formatting import pagify
+from redbot.core.i18n import Translator, cog_i18n
+from redbot.core.modlog import Case, create_case, get_modlog_channel, get_latest_case
+from redbot.core.utils.chat_formatting import pagify, humanize_number, box
 from redbot.core.utils.common_filters import filter_invites
 from redbot.core.utils.menus import start_adding_reactions
-from redbot.core.utils.mod import get_audit_reason, is_allowed_by_hierarchy, is_mod_or_superior
+from redbot.core.utils.mod import (
+    get_audit_reason, is_allowed_by_hierarchy, is_mod_or_superior
+    )
 from redbot.core.utils.predicates import ReactionPredicate
 
 
@@ -92,60 +89,6 @@ ROLE_USER_HIERARCHY_ISSUE = _(
     "try again."
 )
 
-# remove when 3.2 is out
-def humanize_number(val: Union[int, float], override_locale=None) -> str:
-    """
-    Convert an int or float to a str with digit separators based on bot locale
-
-    Parameters
-    ----------
-    val : Union[int, float]
-        The int/float to be formatted.
-    override_locale: Optional[str]
-        A value to override the bots locale.
-
-    Returns
-    -------
-    str
-        locale aware formatted number.
-    """
-    return format_decimal(val, locale=get_babel_locale(override_locale))
-
-def _get_babel_locale(red_locale: str) -> babel.core.Locale:
-    supported_locales = babel.localedata.locale_identifiers()
-    try:  # Handles cases where red_locale is already Babel supported
-        babel_locale = Locale(*babel.parse_locale(red_locale))
-    except (ValueError, babel.core.UnknownLocaleError):
-        try:
-            babel_locale = Locale(*babel.parse_locale(red_locale, sep="-"))
-        except (ValueError, babel.core.UnknownLocaleError):
-            # ValueError is Raised by `parse_locale` when an invalid Locale is given to it
-            # Lets handle it silently and default to "en_US"
-            try:
-                # Try to find a babel locale that's close to the one used by red
-                babel_locale = Locale(Locale.negotiate([red_locale], supported_locales, sep="-"))
-            except (ValueError, TypeError, babel.core.UnknownLocaleError):
-                # If we fail to get a close match we will then default to "en_US"
-                babel_locale = Locale("en", "US")
-    return babel_locale
-
-def get_babel_locale(locale: Optional[str] = None) -> babel.core.Locale:
-    """Function to convert a locale to a ``babel.core.Locale``.
-
-    Parameters
-    ----------
-    locale : Optional[str]
-        The locale to convert, if not specified it defaults to the bot's locale.
-
-    Returns
-    -------
-    babel.core.Locale
-        The babel locale object.
-    """
-    if locale is None:
-        locale = get_locale()
-    return _get_babel_locale(locale)
-
 
 # This makes sure the cog name is "Mod" for help still.
 @cog_i18n(_)
@@ -183,37 +126,30 @@ class ExtMod(Mod, name="Mod"):
                 "default_setting": True,
                 "image": "\N{SPEAKER WITH CANCELLATION STROKE}",
                 "case_str": "Mute",
-                # audit_type should be omitted if the action doesn't show
-                # up in the audit log.
-                "audit_type": "overwrite_update",
             },
             {
                 "name": "unmute",
                 "default_setting": True,
                 "image": "\N{SPEAKER}",
                 "case_str": "Unmute",
-                "audit_type": "overwrite_update"
             },
             {
                 "name": "note",
                 "default_setting": True,
                 "image": "\N{DOUBLE EXCLAMATION MARK}",
                 "case_str": "Note",
-                "audit_type": "overwrite_update"
             },
             {
                 "name": "tempmute",
                 "default_setting": True,
                 "image": "\N{ALARM CLOCK}\N{SPEAKER WITH CANCELLATION STROKE}",
                 "case_str": "Temp Mute",
-                "audit_type": "overwrite_update"
             },
             {
                 "name": "tempunmute",
                 "default_setting": True,
                 "image": "\N{ALARM CLOCK}\N{SPEAKER}",
                 "case_str": "Temp Unmute",
-                "audit_type": "overwrite_update"
             },
         ]
         try:
@@ -331,13 +267,14 @@ class ExtMod(Mod, name="Mod"):
             mute_type = "mute"
         # await user.add_roles(mute_role) # adds muted role
         success, issue = await self._mute(ctx, user, unmute_time)
+        success = success
         if issue:
             return await ctx.send(issue)
 
-        next_case_no = await modlog.get_next_case_number(guild)  # actually the current case no
+        case_number = (await self.get_case_number(guild)) + 1
 
         await ctx.send(f"Muted **{user}** {duration_str.strip()}."
-            f" User notified in {mute_channel.mention}. (Case number {next_case_no}) ")
+            f" User notified in {mute_channel.mention}. (Case number {case_number}) ")
 
         modmail = await self.config.guild(guild).modmail()
         if modmail:
@@ -442,7 +379,7 @@ class ExtMod(Mod, name="Mod"):
     
     @commands.command(aliases=["ui"])
     @commands.bot_has_permissions(embed_links=True)
-    async def userinfo(self, ctx: commands.Context, *, user: discord.User = None):
+    async def userinfo(self, ctx: commands.Context, *, user: discord.Member = None):
         """Show information about a user.
 
         This includes fields for status, discord join date, server
@@ -458,11 +395,8 @@ class ExtMod(Mod, name="Mod"):
         if not user:
             user = author
         
-        try:
-            joined_at = user.joined_at
-        except:
-            return await ctx.send("User is not in server anymore.")
-        
+        joined_at = user.joined_at
+
         since_created = (ctx.message.created_at - user.created_at).days
         if joined_at is not None:
             since_joined = (ctx.message.created_at - joined_at).days
@@ -704,9 +638,10 @@ class ExtMod(Mod, name="Mod"):
         else:
             extra = ". "
 
-        next_case_no = await modlog.get_next_case_number(guild)  # actually the current case no
+        case_number = (await self.get_case_number(guild)) + 1
+
         await ctx.send(_(f"Banned **{user}** indefinitely"
-            f"{extra}(Case number #{next_case_no})"))
+            f"{extra}(Case number #{case_number})"))
         
         try:
             await modlog.create_case(
@@ -837,8 +772,9 @@ class ExtMod(Mod, name="Mod"):
             except RuntimeError as e:
                 await ctx.send(e)
 
-            next_case_no = await modlog.get_next_case_number(guild) 
-            await ctx.send(_(f"Softbanned **{user.name}**. (Case number {next_case_no - 1})"))
+            case_number = await self.get_case_number(guild)
+
+            await ctx.send(_(f"Softbanned **{user.name}**. (Case number {case_number})"))
   
     @commands.command()
     @commands.guild_only()
@@ -889,8 +825,10 @@ class ExtMod(Mod, name="Mod"):
                 )
             except RuntimeError as e:
                 await ctx.send(e)
-            next_case_no = await modlog.get_next_case_number(guild) 
-            await ctx.send(_(f"Unbanned **{user}** from the server. (Case number {next_case_no - 1})"))
+            
+            case_number = await self.get_case_number(guild)
+
+            await ctx.send(_(f"Unbanned **{user}** from the server. (Case number {case_number})"))
 
     @commands.command()
     @commands.guild_only()
@@ -921,15 +859,16 @@ class ExtMod(Mod, name="Mod"):
                     users=', '.join([str(item) for item in banned])
                 )
 
-                next_case_no = await modlog.get_next_case_number(guild)  # the current case no + len(banned)
-                next_case_no -= len(banned)
+                case_number = (await self.get_case_number(guild)) + 1
+
+                case_number -= len(banned)
 
                 if len(banned) > 1:
                     case_no_str = " (Case numbers "
                 else:
                     case_no_str = " (Case number "
 
-                numbers = [str(next_case_no + i) for i in range(len(banned))]
+                numbers = [str(case_number + i) for i in range(len(banned))]
                 case_no_str += ', '.join(numbers)
                 case_no_str += ")"
 
@@ -1081,8 +1020,9 @@ class ExtMod(Mod, name="Mod"):
             if days >= 1:
                 day_str += "s"
 
-            next_case_no = await modlog.get_next_case_number(guild)
-            await ctx.send(_(f"Banned **{user}** for {day_str}. (Case number {next_case_no - 1})"))
+            case_number = await self.get_case_number(guild)
+
+            await ctx.send(_(f"Banned **{user}** for {day_str}. (Case number {case_number})"))
 
     @commands.command(name="search")
     @commands.guild_only()
@@ -1272,8 +1212,10 @@ class ExtMod(Mod, name="Mod"):
                 )
             except RuntimeError as e:
                 await ctx.send(e)
-            next_case_no = await modlog.get_next_case_number(guild)
-            await ctx.send(_(f"Kicked **{user}** from the server. (Case number {next_case_no - 1})"))
+                
+            case_number = await self.get_case_number(guild)
+            
+            await ctx.send(_(f"Kicked **{user}** from the server. (Case number {case_number})"))
     
     @commands.command()
     @commands.guild_only()
@@ -1334,7 +1276,8 @@ class ExtMod(Mod, name="Mod"):
 
         other_stats = (
             f"Categories: **{categories}**\nText Channels: **{text_channels}**\nVoice Channels:"
-            f" **{voice_channels}**\nRoles: **{roles}**\nBoost Level: **{guild.premium_tier}**"
+            f" **{voice_channels}**\nRoles: **{roles}**\nEmojis: **{emojis}**"
+            f"\nBoost Level: **{guild.premium_tier}**"
         )
 
         data = discord.Embed(description=desc, colour=(await ctx.embed_colour()))
@@ -1439,7 +1382,7 @@ class ExtMod(Mod, name="Mod"):
         if user is None:
             user = ctx.author
 
-        admin = Admin(self.config)
+        admin = Admin()
 
         if admin.pass_user_hierarchy_check(ctx, role):
             try:
@@ -1471,7 +1414,7 @@ class ExtMod(Mod, name="Mod"):
         if user is None:
             user = ctx.author
 
-        admin = Admin(self.config)
+        admin = Admin()
 
         if admin.pass_user_hierarchy_check(ctx, role):
             try:
@@ -1489,6 +1432,68 @@ class ExtMod(Mod, name="Mod"):
                 )
         else:
             await admin.complain(ctx, T_(USER_HIERARCHY_ISSUE_ADD), member=user, role=role)
+
+    @_role.command(name="info")
+    @commands.guild_only()
+    @checks.mod_or_permissions(administrator=True)
+    async def role_info(self, ctx: commands.Context, *, role_name: str):
+        """Get info about a role"""
+
+        role = None
+        for _role in ctx.guild.roles:
+            if role_name.lower() in _role.name.lower():
+                role = _role
+
+        if not role:
+            return await ctx.send(f"Role {role_name} not found.")
+        
+        name = role.name
+        role_id = role.id
+        color = role.color
+        hoisted = "Yes" if role.hoist else "No"
+        can_mention = "Yes" if role.mentionable else "No"
+
+        async with self.config.guild(ctx.guild).sticky_roles() as server_sticky_roles:
+            if role_id in server_sticky_roles:
+                sticky = "Yes"
+            else:
+                sticky = "No"
+
+        role_str = (
+            f"[Role]: {name} ({role_id})\n[Color]: {str(color).title()}"
+            f"\n[Mentionable]: {can_mention}\n[Hoisted]: {hoisted}\n[Sticky]: {sticky}"
+        )
+
+        await ctx.send(box(role_str, lang="css"))
+
+    @commands.command(name="roles")
+    @commands.guild_only()
+    @checks.mod_or_permissions(administrator=True)
+    async def roles_info(self, ctx: commands.Context):
+        """Show info about roles"""
+
+        roles = ctx.guild.roles
+
+        embed = discord.Embed(title="Roles")
+
+        for role in roles:
+            if role.position == 0:
+                continue
+
+            name = role.name
+            role_id = role.id
+            color = role.color
+            hoisted = role.hoist       
+            can_mention = role.mentionable
+
+            role_str = (
+                f"ID: {role_id}\nColor: {color}\nMentionable: {can_mention}"
+                f"\nHoisted: {hoisted}"
+            )
+
+            embed.add_field(name=name, value=role_str)
+        
+        await ctx.send(embed=embed)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -1517,83 +1522,6 @@ class ExtMod(Mod, name="Mod"):
                         timestamp = self.utc_timestamp(datetime.utcnow())
 
                         slowmodes[channel.id] = timestamp
-
-    # remove when 3.2 is out
-    @commands.Cog.listener()
-    async def on_member_ban(self, guild: discord.Guild, member: discord.Member):
-
-        if not guild.me.guild_permissions.view_audit_log:
-            return
-
-        try:
-            await get_modlog_channel(guild)
-        except RuntimeError:
-            return  # No modlog channel so no point in continuing
-
-        when = datetime.utcnow()
-        before = when + timedelta(minutes=1)
-        after = when - timedelta(minutes=1)
-        await asyncio.sleep(10)  # prevent small delays from causing a 5 minute delay on entry
-
-        attempts = 0
-        # wait up to an hour to find a matching case
-        while attempts < 12 and guild.me.guild_permissions.view_audit_log:
-            attempts += 1
-            try:
-                entry = await guild.audit_logs(
-                    action=discord.AuditLogAction.ban, before=before, after=after
-                ).find(lambda e: e.target.id == member.id and after < e.created_at < before)
-            except discord.Forbidden:
-                break
-            except discord.HTTPException:
-                pass
-            else:
-                if entry:
-                    if entry.user.id != guild.me.id:
-                        # Don't create modlog entires for the bot's own bans, cogs do this.
-                        mod, reason, date = entry.user, entry.reason, entry.created_at
-                        await create_case(self.bot, guild, date, "ban", member, mod, reason)
-                    return
-
-            await asyncio.sleep(300)
-    
-    # remove when 3.2 is out 
-    @commands.Cog.listener()
-    async def on_member_unban(self, guild: discord.Guild, user: discord.User):
-        if not guild.me.guild_permissions.view_audit_log:
-            return
-
-        try:
-            await get_modlog_channel(guild)
-        except RuntimeError:
-            return  # No modlog channel so no point in continuing
-
-        when = datetime.utcnow()
-        before = when + timedelta(minutes=1)
-        after = when - timedelta(minutes=1)
-        await asyncio.sleep(10)  # prevent small delays from causing a 5 minute delay on entry
-
-        attempts = 0
-        # wait up to an hour to find a matching case
-        while attempts < 12 and guild.me.guild_permissions.view_audit_log:
-            attempts += 1
-            try:
-                entry = await guild.audit_logs(
-                    action=discord.AuditLogAction.unban, before=before, after=after
-                ).find(lambda e: e.target.id == user.id and after < e.created_at < before)
-            except discord.Forbidden:
-                break
-            except discord.HTTPException:
-                pass
-            else:
-                if entry:
-                    if entry.user.id != guild.me.id:
-                        # Don't create modlog entires for the bot's own unbans, cogs do this.
-                        mod, reason, date = entry.user, entry.reason, entry.created_at
-                        await create_case(self.bot, guild, date, "unban", user, mod, reason)
-                    return
-
-            await asyncio.sleep(300)
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
@@ -1881,6 +1809,15 @@ class ExtMod(Mod, name="Mod"):
             )
         except RuntimeError as e:
             pass
+    
+    async def get_case_number(self, guild: discord.Guild):
+        """Get the current case number"""
+
+        latest_case = await get_latest_case(guild, self.bot)
+        if latest_case:
+            return latest_case.to_json()['case_number']
+        else:
+            return 0
     
     def cog_unload(self):
         self.tmute_expiry_task.cancel()

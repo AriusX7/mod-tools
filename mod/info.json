@@ -1,16 +1,19 @@
 {
 	"author": "AriusX7",
 	"description": "A redefined collection of useful moderation commands.",
-    "install_msg" : "Thank you for installing the redefined Mod cog. Please ensure you have given the bot sufficient permissions. Use the `[p]help Mod` command after loading to get started.",
-    "min_python_version": [3, 6, 0],
+	"install_msg": "Thank you for installing the redefined Mod cog. Please ensure you have given the bot sufficient permissions. Use the `[p]help Mod` command after loading to get started.",
+	"min_python_version": [3, 8, 0],
 	"short": "A collection of  moderation commands.",
 	"tags": [
-        "moderation",
-        "mute",
+		"moderation",
+		"mute",
 		"ban",
 		"note",
 		"search"
 	],
-	"requirements" : ["Babel", "python-dateutil"],
+	"requirements": [
+		"Babel",
+		"python-dateutil"
+	],
 	"type": "COG"
 }
