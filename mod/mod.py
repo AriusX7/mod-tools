@@ -89,7 +89,6 @@ ROLE_USER_HIERARCHY_ISSUE = _(
     "try again."
 )
 
-
 # This makes sure the cog name is "Mod" for help still.
 @cog_i18n(_)
 class ExtMod(Mod, name="Mod"):
@@ -379,6 +378,7 @@ class ExtMod(Mod, name="Mod"):
     
     @commands.command(aliases=["ui"])
     @commands.bot_has_permissions(embed_links=True)
+    @checks.mod_or_permissions(administrator=True)
     async def userinfo(self, ctx: commands.Context, *, user: discord.Member = None):
         """Show information about a user.
 
@@ -1219,6 +1219,7 @@ class ExtMod(Mod, name="Mod"):
     
     @commands.command()
     @commands.guild_only()
+    @checks.mod_or_permissions(administrator=True)
     async def server(self, ctx: commands.Context):
         """Show information about server"""
 
@@ -1494,6 +1495,10 @@ class ExtMod(Mod, name="Mod"):
             embed.add_field(name=name, value=role_str)
         
         await ctx.send(embed=embed)
+
+    # @commands.command(name="invite")
+    # async def _invite(self, ctx: Context):
+    #     """Shows Badland invite url"""
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
