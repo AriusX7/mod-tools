@@ -89,6 +89,8 @@ ROLE_USER_HIERARCHY_ISSUE = _(
     "try again."
 )
 
+NEED_MANAGE_ROLES = _("I need manage roles permission to do that.")
+
 # This makes sure the cog name is "Mod" for help still.
 @cog_i18n(_)
 class ExtMod(Mod, name="Mod"):
@@ -1383,24 +1385,32 @@ class ExtMod(Mod, name="Mod"):
         if user is None:
             user = ctx.author
 
-        admin = Admin()
-
-        if admin.pass_user_hierarchy_check(ctx, role):
-            try:
-                await user.add_roles(role)
-            except discord.Forbidden:
-                if not self.pass_hierarchy_check(ctx, role):
-                    await self.complain(ctx, T_(HIERARCHY_ISSUE_ADD), role=role, member=user)
-                else:
-                    await self.complain(ctx, T_(GENERIC_FORBIDDEN))
-            else:
-                await ctx.send(
-                    _("Added **{role.name}** to **{member.display_name}**.").format(
-                        role=role, member=user
-                    )
+        if role in user.roles:
+            await ctx.send(
+                _("{member.display_name} already has the role {role.name}.").format(
+                    role=role, member=user
                 )
+            )
+            return
+        if not Admin.pass_user_hierarchy_check(ctx, role):
+            await ctx.send(_(USER_HIERARCHY_ISSUE_ADD).format(role=role, member=user))
+            return
+        if not Admin.pass_hierarchy_check(ctx, role):
+            await ctx.send(_(HIERARCHY_ISSUE_ADD).format(role=role, member=user))
+            return
+        if not ctx.guild.me.guild_permissions.manage_roles:
+            await ctx.send(_(NEED_MANAGE_ROLES))
+            return
+        try:
+            await user.add_roles(role)
+        except discord.Forbidden:
+            await ctx.send(_(GENERIC_FORBIDDEN))
         else:
-            await admin.complain(ctx, T_(USER_HIERARCHY_ISSUE_ADD), member=user, role=role)
+            await ctx.send(
+                _("Added **{role.name}** to **{member.display_name}**.").format(
+                        role=role, member=user
+                )
+            )
 
     @_role.command(name="remove")
     @commands.guild_only()
@@ -1415,24 +1425,33 @@ class ExtMod(Mod, name="Mod"):
         if user is None:
             user = ctx.author
 
-        admin = Admin()
-
-        if admin.pass_user_hierarchy_check(ctx, role):
-            try:
-                await user.remove_roles(role)
-            except discord.Forbidden:
-                if not self.pass_hierarchy_check(ctx, role):
-                    await self.complain(ctx, T_(HIERARCHY_ISSUE_REMOVE), role=role, member=user)
-                else:
-                    await self.complain(ctx, T_(GENERIC_FORBIDDEN))
-            else:
-                await ctx.send(
-                    _("Removed **{role.name}** from **{member.display_name}**.").format(
-                        role=role, member=user
-                    )
+        if role not in user.roles:
+            await ctx.send(
+                _("{member.display_name} does not have the role {role.name}.").format(
+                    role=role, member=user
                 )
+            )
+            return
+        if not Admin.pass_user_hierarchy_check(ctx, role):
+            await ctx.send(_(USER_HIERARCHY_ISSUE_REMOVE).format(role=role, member=user))
+            return
+        if not Admin.pass_hierarchy_check(ctx, role):
+            await ctx.send(_(HIERARCHY_ISSUE_REMOVE).format(role=role, member=user))
+            return
+        if not ctx.guild.me.guild_permissions.manage_roles:
+            await ctx.send(_(NEED_MANAGE_ROLES))
+            return
+        try:
+            await user.remove_roles(role)
+        except discord.Forbidden:
+            await ctx.send(_(GENERIC_FORBIDDEN))
         else:
-            await admin.complain(ctx, T_(USER_HIERARCHY_ISSUE_ADD), member=user, role=role)
+            await ctx.send(
+                _("Removed **{role.name}** from **{member.display_name}**.").format(
+                        role=role, member=user
+                )
+            )
+
 
     @_role.command(name="info")
     @commands.guild_only()
