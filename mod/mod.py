@@ -1522,7 +1522,7 @@ class ExtMod(Mod, name="Mod"):
     @commands.command(name="inrole")
     @commands.guild_only()
     @checks.mod_or_permissions(administrator=True)
-    async def in_role(self, ctx: commands.Context, role: discord.Role):
+    async def in_role(self, ctx: commands.Context, *, role: discord.Role):
         """Shows list of users with the specified role."""
 
         members_to_show = [m for m in ctx.guild.members if role in m.roles]
