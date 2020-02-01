@@ -1094,7 +1094,7 @@ class ExtMod(Mod, name="Mod"):
             await ctx.send(f"Showing first 10 matches. Whole result can be found in the file below.")
             a_file = True
 
-        match_str = "```rust"
+        match_str = "```swift"
         if a_file:
             f = open("search_results.txt", "w")
         for match in _matches:
@@ -1456,16 +1456,16 @@ class ExtMod(Mod, name="Mod"):
     @_role.command(name="info")
     @commands.guild_only()
     @checks.mod_or_permissions(administrator=True)
-    async def role_info(self, ctx: commands.Context, *, role_name: str):
+    async def role_info(self, ctx: commands.Context, *, role: discord.Role):
         """Get info about a role"""
 
-        role = None
-        for _role in ctx.guild.roles:
-            if role_name.lower() in _role.name.lower():
-                role = _role
+        # role = None
+        # for _role in ctx.guild.roles:
+        #     if role_name.lower() in _role.name.lower():
+        #         role = _role
 
-        if not role:
-            return await ctx.send(f"Role {role_name} not found.")
+        # if not role:
+        #     return await ctx.send(f"Role {role_name} not found.")
         
         name = role.name
         role_id = role.id
@@ -1519,6 +1519,24 @@ class ExtMod(Mod, name="Mod"):
     # async def _invite(self, ctx: Context):
     #     """Shows Badland invite url"""
 
+    @commands.command(name="inrole")
+    @commands.guild_only()
+    @checks.mod_or_permissions(administrator=True)
+    async def in_role(self, ctx: commands.Context, role: discord.Role):
+        """Shows list of users with the specified role."""
+
+        members_to_show = [m for m in ctx.guild.members if role in m.roles]
+        members_to_show = sorted(members_to_show, key=lambda member: member.display_name)
+
+        await ctx.send(f"There are **{len(members_to_show)}** in the role {role.name}.")
+        
+        reply_str = ""
+        for member in members_to_show:
+            reply_str += f"\n{member.id} {member}"
+        
+        for page in pagify(reply_str):
+            await ctx.send(f"```swift\n{page}```")
+    
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         author = message.author
