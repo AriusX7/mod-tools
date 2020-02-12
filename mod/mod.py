@@ -1239,6 +1239,9 @@ class ExtMod(Mod, name="Mod"):
         offline = humanize_number(
             len([m.status for m in guild.members if m.status == discord.Status.offline])
         )
+        bots = humanize_number(
+            len([m for m in guild.members if m.bot])
+        )
 
         total_users = humanize_number(len(guild.members))
         text_channels = humanize_number(len(guild.text_channels))
@@ -1271,11 +1274,15 @@ class ExtMod(Mod, name="Mod"):
         created_at_str += ", ".join(created_at_strs) 
         created_at_str += f" ago** ({created_at.strftime('%d %b %Y %H:%M')})"
 
-        desc = f"Created: {created_at_str}\nOwner: **{ctx.guild.owner}** ({ctx.guild.owner.id})"
-        desc += f"\nVoice Region: **{guild.region}**"
+        desc = (
+            f"Created: {created_at_str}\nOwner: **{ctx.guild.owner}**"
+            f" ({ctx.guild.owner.id})\nVoice Region: **{guild.region}**"
+        )
 
-        user_str = f"Total: **{total_users}**\nOnline: **{online}**\nIdle: **{idle}**"
-        user_str += f"\nDND: **{dnd}**\nOffline: **{offline}**"
+        user_str = (
+            f"Total: **{total_users}**\nOnline: **{online}**\nIdle: **{idle}**"
+            f"\nDND: **{dnd}**\nOffline: **{offline}**\nBots: **{bots}**"
+        )
 
         other_stats = (
             f"Categories: **{categories}**\nText Channels: **{text_channels}**\nVoice Channels:"
@@ -1452,7 +1459,6 @@ class ExtMod(Mod, name="Mod"):
                 )
             )
 
-
     @_role.command(name="info")
     @commands.guild_only()
     @checks.mod_or_permissions(administrator=True)
@@ -1514,10 +1520,6 @@ class ExtMod(Mod, name="Mod"):
             embed.add_field(name=name, value=role_str)
         
         await ctx.send(embed=embed)
-
-    # @commands.command(name="invite")
-    # async def _invite(self, ctx: Context):
-    #     """Shows Badland invite url"""
 
     @commands.command(name="inrole")
     @commands.guild_only()
