@@ -131,3 +131,5 @@ dmypy.json
 # Misc
 .vscode
 .DS_Store
+
+test.*
