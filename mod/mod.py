@@ -96,7 +96,7 @@ NEED_MANAGE_ROLES = _("I need manage roles permission to do that.")
 class ExtMod(Mod, name='Mod'):
     def __init__(self, bot):
         super().__init__(bot)
-        self.bot = bot
+
         self.config = Config.get_conf(
             self, 1_310_127_007, force_registration=True)
 
@@ -1150,6 +1150,7 @@ class ExtMod(Mod, name='Mod'):
         # f = open("bans.txt", "r")
         await ctx.send(f"{len(ban_list)} users are currently banned.")
         await ctx.send(file=discord.File('bans.json'))
+        f.close()
 
         try:
             # delete file after sending
