@@ -1,0 +1,14 @@
+{
+    "author" : "AriusX7",
+    "install_msg" : "Thank you for installing my moderation cogs.",
+    "name" : "Arius-Cogs",
+    "short": "A collection of  moderation commands.",
+    "description" : "A redefined collection of useful moderation commands and customised modlog.",
+	"tags": [
+        "moderation",
+        "mute",
+        "warn",
+        "modlog",
+        "note"
+	]
+}
