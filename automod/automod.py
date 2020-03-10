@@ -67,7 +67,7 @@ invite_regex = re.compile(
     r"\/|app\.com\/invite\/)([0-z]+))"
 )
 
-__version__ = "1.0.0"
+__version__ = '1.0.1'
 
 
 @cog_i18n(_)
@@ -92,7 +92,7 @@ class AutoMod(commands.Cog):
     @commands.guild_only()
     @commands.admin_or_permissions()
     async def _automod(self, ctx: Context):
-        """Set automod settings!"""
+        """Configure automod settings."""
 
         if not ctx.invoked_subcommand:
             await ctx.invoke(
@@ -321,10 +321,10 @@ class AutoMod(commands.Cog):
 
         await ctx.send(changes)
 
-    @_automod.group(name='filter')
+    @commands.group(name='filter')
     @is_log_set()
     async def _filter(self, ctx: Context):
-        """Automod filter settings."""
+        """Configure automod message filter settings."""
         pass
 
     @_filter.command(name='add')
@@ -378,18 +378,37 @@ class AutoMod(commands.Cog):
         """Remove pattern from the automod filter."""
 
         async with self.config.guild(ctx.guild).filter_messages() as f:
-            f['filter'].pop(number-1)
+            try:
+                f['filter'].pop(number-1)
+            except IndexError:
+                return await ctx.send(
+                    _("Regex number {} doesn't exist in filter.").format(number)
+                )
 
         await ctx.message.add_reaction(check_mark)
 
-    @_automod.group(name='invite')
+    @_filter.command(name='update')
+    async def _filter_update(self, ctx: Context,number: int, *, regex: str):
+        """Edit regex of the specified filter."""
+
+        async with self.config.guild(ctx.guild).filter_messages() as f:
+            try:
+                f['filter'][number-1] = regex
+            except IndexError:
+                return await ctx.send(
+                    _("Regex number {} doesn't exist in filter.").format(number)
+                )
+
+        await ctx.message.add_reaction(check_mark)
+
+    @commands.group(name='invites')
     async def _invite(self, ctx: Context):
-        """Automod invite settings."""
+        """Configure automod invite filter settings."""
         pass
 
     @_invite.command(name='add')
     async def _invite_add(self, ctx: Context, server_id: int):
-        """Add server id to the invite whitelist."""
+        """Add server id to the invites whitelist."""
 
         async with self.config.guild(ctx.guild).filter_invites() as f:
             f['whitelist'].append(server_id)
@@ -398,7 +417,7 @@ class AutoMod(commands.Cog):
 
     @_invite.command(name='view')
     async def _invite_view(self, ctx: Context):
-        """View servers in the invite whitelist."""
+        """View servers in the invites whitelist."""
 
         async with self.config.guild(ctx.guild).filter_invites() as f:
             whitelist = f['whitelist']
@@ -431,7 +450,7 @@ class AutoMod(commands.Cog):
 
     @_invite.command(name='remove')
     async def _invite_remove(self, ctx: Context, server_id: int):
-        """Remove server id from the invite whitelist."""
+        """Remove server id from the invites whitelist."""
 
         async with self.config.guild(ctx.guild).filter_invites() as f:
             try:
