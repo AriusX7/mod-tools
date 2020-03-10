@@ -163,8 +163,15 @@ class ExtMod(Mod, name='Mod'):
     @commands.guild_only()
     @commands.bot_has_permissions(manage_roles=True)
     @checks.mod_or_permissions(administrator=True)
-    async def mute(self, ctx: commands.Context, user: discord.Member, 
-        duration: Optional[str] = None, *, reason: Optional[str] = None):
+    async def mute(
+        self,
+        ctx: commands.Context,
+        user: discord.Member, 
+        duration: Optional[str] = None,
+        *,
+        reason: Optional[str] = None,
+        silent=False
+    ):
         """Mute a user.
 
         If a reason is specified, it will be the reason that shows up
@@ -176,13 +183,11 @@ class ExtMod(Mod, name='Mod'):
 
         is_mod = await is_mod_or_superior(bot=self.bot, obj=user)
         if  is_mod:
-            return await ctx.send(f"{mute_fail} user has moderator or higher permissions.")
-
-        # if user.top_role >= author.top_role:
-        #     return await ctx.send(f"{mute_fail} user is higher in hierarchy.")
-
-        # if user.top_role >= self.bot:
-        #     return await ctx.send(f"{mute_fail} user is higher in hierarchy.")
+            if not silent:
+                await ctx.send(
+                    f"{mute_fail} user has moderator or higher permissions."
+                )
+            return
 
         mute_role_id = await self.config.guild(guild).mute_role_id()
         mute_role = discord.utils.get(guild.roles, id=mute_role_id)
@@ -196,6 +201,8 @@ class ExtMod(Mod, name='Mod'):
             mute_role = discord.utils.get(guild.roles, name="Muted")
 
             if not mute_role:
+                if silent:
+                    return
                 msg = await ctx.send("Muted role not set. Create a new muted role?")
                 start_adding_reactions(msg, ReactionPredicate.YES_OR_NO_EMOJIS)
                 pred = ReactionPredicate.yes_or_no(msg, ctx.author)
@@ -223,6 +230,8 @@ class ExtMod(Mod, name='Mod'):
             mute_channel = discord.utils.get(guild.channels, name="muted")
 
             if not mute_channel:
+                if silent:
+                    return
                 msg = await ctx.send("Muted channel not set. Create a new muted channel?")
                 start_adding_reactions(msg, ReactionPredicate.YES_OR_NO_EMOJIS)
                 pred = ReactionPredicate.yes_or_no(msg, ctx.author)
@@ -271,12 +280,16 @@ class ExtMod(Mod, name='Mod'):
         success, issue = await self._mute(ctx, user, unmute_time)
         success = success
         if issue:
-            return await ctx.send(issue)
+            if not silent:
+                await ctx.send(issue)
+            log.exception(issue)
+            return
 
         case_number = (await self.get_case_number(guild)) + 1
-
-        await ctx.send(f"Muted **{user}** {duration_str.strip()}."
-            f" User notified in {mute_channel.mention}. (Case number {case_number}) ")
+        
+        if not silent:
+            await ctx.send(f"Muted **{user}** {duration_str.strip()}."
+                f" User notified in {mute_channel.mention}. (Case number {case_number}) ")
 
         modmail = await self.config.guild(guild).modmail()
         if modmail:
@@ -1581,7 +1594,7 @@ class ExtMod(Mod, name='Mod'):
                     await member.add_roles(role)
                 except:
                     continue
-    
+
     @commands.Cog.listener()
     async def on_member_remove(self, member: discord.Member):
         
@@ -1602,7 +1615,7 @@ class ExtMod(Mod, name='Mod'):
                     # sticky_roles.remove(sticky_role_id)
                     # sticky_roles.remove(560444582429589504)
                     sticky_roles[:] = [i for i in sticky_roles if i != sticky_role_id]
-    
+
     async def _cases_info(self, ctx: commands.Context, user: discord.Member):
         """Get case summary of a member."""
         
@@ -1625,7 +1638,7 @@ class ExtMod(Mod, name='Mod'):
             cases_info[case_no] = case_name
             # await ctx.send(f"**Case Number:** {case_no}\n**Case Type:** {case_type.case_str}")
         return cases_info
-    
+
     async def _mute(self, ctx: commands.Context, user: discord.Member, dur: datetime = None):
         """Add/remove mute role. This is a separate function to support temporary mutes."""
 
@@ -1644,7 +1657,7 @@ class ExtMod(Mod, name='Mod'):
             cur_tmutes = await self.config.guild(guild).current_tempmutes()
             cur_tmutes.append(user.id)
             await self.config.guild(guild).current_tempmutes.set(cur_tmutes)
-        
+
         mute_role = discord.utils.get(guild.roles, id=mute_role_id)
 
         await user.add_roles(mute_role)  # adds muted role
@@ -1652,7 +1665,7 @@ class ExtMod(Mod, name='Mod'):
             sticky_roles.append(mute_role_id)
 
         return True, False
-    
+
     async def check_tempmute_expirations(self):
         Member = namedtuple("Member", "id guild")
         while True:
@@ -1689,7 +1702,7 @@ class ExtMod(Mod, name='Mod'):
                                     f" from {guild.name}({guild.id}) due to permissions."
                                 )
             await asyncio.sleep(60)
-    
+
     async def edit_tmute_msg(self, guild: discord.Guild, user: discord.Member):
         """Edit the temporary mute modlog message when unmuting."""
         user_cases = await modlog.get_cases_for_member(guild=guild, bot=self.bot, member=user)
@@ -1724,7 +1737,7 @@ class ExtMod(Mod, name='Mod'):
         }
 
         await case_obj.edit(data=data)
-    
+
     async def check_uslow_expirations(self):
         Member = namedtuple("Member", "id guild")
         while True:
@@ -1816,7 +1829,7 @@ class ExtMod(Mod, name='Mod'):
         if secs:
             s.append("%i sec" % secs)
         return " ".join(s)
-    
+
     def utc_timestamp(self, time: datetime) -> float:
         """Return timestamp in UTC.
         
@@ -1836,7 +1849,7 @@ class ExtMod(Mod, name='Mod'):
         timestamp = (time - epoch).total_seconds()
 
         return timestamp
-    
+
     async def create_temp_unmute_case(self, user: discord.Member, guild: discord.Guild):
         try:
             await modlog.create_case(
@@ -1851,7 +1864,7 @@ class ExtMod(Mod, name='Mod'):
             )
         except RuntimeError as e:
             pass
-    
+
     async def get_case_number(self, guild: discord.Guild):
         """Get the current case number"""
 
@@ -1860,7 +1873,7 @@ class ExtMod(Mod, name='Mod'):
             return latest_case.to_json()['case_number']
         else:
             return 0
-    
+
     def cog_unload(self):
         self.tmute_expiry_task.cancel()
         self.uslow_expiry_task.cancel()
