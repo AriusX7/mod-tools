@@ -322,6 +322,8 @@ class AutoMod(commands.Cog):
         await ctx.send(changes)
 
     @commands.group(name='filter')
+    @commands.guild_only()
+    @commands.admin_or_permissions()
     @is_log_set()
     async def _filter(self, ctx: Context):
         """Configure automod message filter settings."""
@@ -402,12 +404,14 @@ class AutoMod(commands.Cog):
         await ctx.message.add_reaction(check_mark)
 
     @commands.group(name='invites')
-    async def _invite(self, ctx: Context):
+    @commands.guild_only()
+    @commands.admin_or_permissions()
+    async def _invites(self, ctx: Context):
         """Configure automod invite filter settings."""
         pass
 
-    @_invite.command(name='add')
-    async def _invite_add(self, ctx: Context, server_id: int):
+    @_invites.command(name='add')
+    async def _invites_add(self, ctx: Context, server_id: int):
         """Add server id to the invites whitelist."""
 
         async with self.config.guild(ctx.guild).filter_invites() as f:
@@ -415,8 +419,8 @@ class AutoMod(commands.Cog):
 
         await ctx.message.add_reaction(check_mark)
 
-    @_invite.command(name='view')
-    async def _invite_view(self, ctx: Context):
+    @_invites.command(name='view')
+    async def _invites_view(self, ctx: Context):
         """View servers in the invites whitelist."""
 
         async with self.config.guild(ctx.guild).filter_invites() as f:
@@ -448,8 +452,8 @@ class AutoMod(commands.Cog):
         except discord.Forbidden:
             await ctx.send(guilds_info)
 
-    @_invite.command(name='remove')
-    async def _invite_remove(self, ctx: Context, server_id: int):
+    @_invites.command(name='remove')
+    async def _invites_remove(self, ctx: Context, server_id: int):
         """Remove server id from the invites whitelist."""
 
         async with self.config.guild(ctx.guild).filter_invites() as f:
