@@ -1,0 +1,11 @@
+{
+	"author": "AriusX7",
+	"description": "A collection of useful automoderation commands and functions.",
+	"install_msg": "Thank you for installing the AutoMod cog. Please ensure you have given the bot sufficient permissions. Use the `[p]help AutoMod` command after loading to get started.",
+	"min_python_version": [3, 8, 0],
+	"short": "A collection of  automoderation commands.",
+	"tags": [
+		"automod"
+	],
+	"type": "COG"
+}
