@@ -488,7 +488,6 @@ class ExtMod(Mod, name='Mod'):
                 role_str = None
 
             if cases:
-                
                 initial_str = f"Total Cases: {len(cases)}\nSummary: "
                 case_str = initial_str + ", ".join([f"{cases[x]} (#{x})" for x in cases])
 
@@ -1628,7 +1627,10 @@ class ExtMod(Mod, name='Mod'):
 
         cases_info = {}
         for case in user_cases:
-            case_json = case.to_json()
+            try:
+                case_json = case.to_json()
+            except AttributeError:
+                continue
             case_no = case_json["case_number"]
             case_type = await modlog.get_casetype(case_json["action_type"])
             case_name = case_type.case_str
