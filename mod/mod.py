@@ -117,7 +117,6 @@ class ExtMod(Mod, name='Mod'):
         self.uslow_expiry_task.add_done_callback(error_callback)
 
     async def initialize(self):
-        await super().initialize()
         await self.register_casetypes()
 
     @staticmethod
@@ -581,7 +580,7 @@ class ExtMod(Mod, name='Mod'):
             await ctx.send(e)
         
         await ctx.send(f"Added note to **{user}**.")
-    
+
     @commands.command(name="cases")
     @commands.guild_only()
     @checks.mod_or_permissions(administrator=True)
@@ -597,7 +596,7 @@ class ExtMod(Mod, name='Mod'):
             case_str += f"**{case}:** {cases_info[case]}\n"
 
         await ctx.send(case_str)
-    
+
     @commands.command(name="ban")
     @commands.guild_only()
     @commands.bot_has_permissions(ban_members=True)
@@ -1134,7 +1133,7 @@ class ExtMod(Mod, name='Mod'):
             except OSError:
                 # remove all the text if unable to delete file
                 open('search_results.txt', 'w').close()
-    
+
     @commands.command(name="bans")
     @commands.guild_only()
     @commands.bot_has_permissions(view_audit_log=True)
@@ -1170,7 +1169,7 @@ class ExtMod(Mod, name='Mod'):
         except OSError:
             # remove all the text if unable to delete file
             open('bans.json', 'w').close()
-     
+
     @commands.command()
     @commands.guild_only()
     @commands.bot_has_permissions(kick_members=True)
